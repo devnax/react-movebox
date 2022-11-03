@@ -4,7 +4,8 @@ import * as ReactDOM from 'react-dom';
 import useMoveable from '../.';
 
 const App = () => {
-  const [state, ref] = useMoveable({
+  const [refs, state] = useMoveable({
+    
     start: (s) => {
       console.log(s);
     },
@@ -18,18 +19,31 @@ const App = () => {
   
   return (
     <div
-      ref={ref}
+      ref={refs.boundaryRef}
+      style={{
+        width: 500,
+        height: 500,
+        background: "green",
+        marginLeft: 100,
+        marginTop: 100
+      }}
+    >
+      <div
+      ref={refs.boxRef}
       style={{
         width: 20,
         height: 20,
         borderRadius: 20,
         backgroundColor: "red",
-        position: "fixed"
+        position: "fixed",
+        zIndex: 9999
       }}
     >
       
+    </div>
     </div>
   );
 };
 
 ReactDOM.render(<App />, document.getElementById('root'));
+

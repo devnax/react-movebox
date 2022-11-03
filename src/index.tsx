@@ -1,5 +1,7 @@
-import { useState, useId, useEffect, useRef, useMemo } from 'react'
-import { StateProps, useDragProps } from './types'
+import {  useId, useEffect, useRef, useMemo } from 'react'
+import { StateProps, useMoveboxProps, useMoveboxReturn } from './types'
+
+export * from './types'
 
 let defState = {
   pos: {
@@ -16,42 +18,35 @@ let defState = {
 
 const Factory = new Map<string, StateProps>()
 
-const useMovebox = (props?: useDragProps) => {
+const useMovebox = (props?: useMoveboxProps): useMoveboxReturn => {
 
   const id = useId()
-  const ref: any = useRef()
-  const handerRef: any = useRef()
-  const [, dispatch] = useState(0)
+  const boxRef: any = useRef()
+  const handlerRef: any = useRef()
+  const boundaryRef: any = useRef()
   useMemo(() => Factory.set(id, defState), [])
-  const setState = (s: Partial<StateProps>) => {
-    Factory.set(id, { ...(Factory.get(id) || {}) as any, ...s })
-    dispatch(Math.random())
-  }
 
   const handleDown = (e: any) => {
-    if (!ref.current) return
+    if (!boxRef.current) return
     const state = Factory.get(id)
     const s = {
       ...state,
       isMouseDown: true,
       initX: e.offsetX,
       initY: e.offsetY,
-      height: ref.current.offsetHeight,
-      width: ref.current.offsetWidth,
+      height: boxRef.current.offsetHeight,
+      width: boxRef.current.offsetWidth,
     }
-    setState(s)
+    Factory.set(id, s as StateProps)
     props?.start && props.start(s as StateProps)
   }
 
   const moving = (e: any) => {
     const state = Factory.get(id)
     if (state?.isMouseDown) {
-      if (handerRef.current) {
-        if (!handerRef.current.contains(e.target)) {
-          setState({
-            ...Factory.get(id),
-            isMouseDown: false
-          })
+      if (handlerRef.current) {
+        if (!handlerRef.current.contains(e.target)) {
+          Factory.set(id, {...Factory.get(id), isMouseDown: false} as StateProps)
           return;
         }
       }
@@ -70,8 +65,40 @@ const useMovebox = (props?: useDragProps) => {
       if (e.clientY > window.innerHeight - state.height + state.initY) {
         cy = window.innerHeight - state.height;
       }
-      ref.current.style.left = cx + "px";
-      ref.current.style.top = cy + "px";
+
+
+      if(props?.boundary){
+        cx = cx <= (props.boundary.width - state.width) ? cx : (props.boundary.width - state.width)
+        cy = cy <= (props.boundary.height - state.height) ? cy : (props.boundary.height - state.height)
+      }else if(boundaryRef.current){
+        const bnd = boundaryRef.current.getBoundingClientRect()
+        
+        if(cy < bnd.top){
+          cy = bnd.top
+        }else if(cy > (bnd.bottom - state.height)){
+          cy = bnd.bottom - state.height
+        }
+        
+        if(cx < bnd.left){
+          cx = bnd.left
+        }else if(cx > (bnd.right - state.width)){
+          cx = bnd.right - state.width
+        }
+      }
+
+      Factory.set(id, {
+        ...state, 
+        pos: {
+          left: cx,
+          top: cy
+        }
+      })
+      
+      if(props?.defaultStyle !== false){
+        boxRef.current.style.left = cx + "px";
+        boxRef.current.style.top = cy + "px";
+      }
+      
       props?.moving && props.moving({
         ...state, pos: {
           left: cx,
@@ -82,23 +109,18 @@ const useMovebox = (props?: useDragProps) => {
   }
 
   const up = () => {
-    const state = Factory.get(id)
     const s = {
-      ...state,
-      isMouseDown: false,
-      pos: {
-        left: parseInt(ref.current.style.left.replace("px")),
-        top: parseInt(ref.current.style.top.replace("px"))
-      }
+      ...Factory.get(id),
+      isMouseDown: false
     }
-    setState(s)
+    Factory.set(id, s as StateProps)
     props?.end && props.end(s as StateProps)
   }
 
   useEffect(() => {
-    if (ref.current) {
-      ref.current.addEventListener("mousedown", handleDown);
-      ref.current.addEventListener("mouseup", up);
+    if (boxRef.current) {
+      boxRef.current.addEventListener("mousedown", handleDown);
+      boxRef.current.addEventListener("mouseup", up);
       document.addEventListener("mousemove", moving);
     }
 
@@ -109,7 +131,13 @@ const useMovebox = (props?: useDragProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  return [Factory.get(id), ref, handerRef]
+  return [{
+    boxRef,
+    handlerRef,
+    boundaryRef
+  }
+, Factory.get(id) as StateProps
+] as useMoveboxReturn
 }
 
 
