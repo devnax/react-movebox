@@ -7,7 +7,7 @@ import useMovebox from 'react-movebox'
 
 
 const App = () => {
-  const [state, ref] = useMoveable({
+  const [state, ref] = useMovebox({
     start: (s) => {
       console.log(s);
     },
